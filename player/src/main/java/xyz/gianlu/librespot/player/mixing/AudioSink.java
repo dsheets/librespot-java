@@ -137,9 +137,22 @@ public final class AudioSink implements Runnable, Closeable {
         if (volume < 0 || volume > Player.VOLUME_MAX)
             throw new IllegalArgumentException("Invalid volume: " + volume);
 
-        float volumeNorm = ((float) volume) / Player.VOLUME_MAX;
-        if (output.setVolume(volumeNorm)) mixing.setGlobalGain(1);
-        else mixing.setGlobalGain(volumeNorm);
+        double volumeNorm;
+        if (volume == 0) { // set to avoid fp/rounding error
+            volumeNorm = 0.0;
+        } else if (volume == Player.VOLUME_MAX) { // set to avoid fp/rounding error
+            volumeNorm = 1.0;
+        } else {
+            volumeNorm = ((double) volume) / Player.VOLUME_MAX;
+            double DB_RANGE = 40.0;
+            double DB_VOLTAGE_RATIO = 20.0;
+            double db_ratio = Math.pow(10.0, DB_RANGE / DB_VOLTAGE_RATIO);
+            double ideal_factor = Math.log(db_ratio);
+            volumeNorm = Math.exp(ideal_factor * volumeNorm) / db_ratio;
+        }
+
+        if (output.setVolume((float) volumeNorm)) mixing.setGlobalGain(1);
+        else mixing.setGlobalGain((float) volumeNorm);
     }
 
     @Override
